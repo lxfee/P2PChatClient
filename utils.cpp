@@ -84,3 +84,9 @@ QString getBcastIp(QString ip)
     }
     return bc;
 }
+
+quint64 encodeIPAndPort(QHostAddress ip, quint16 port)
+{
+    quint64 id = ip.toIPv4Address();
+    return (id << 16) + port;
+}

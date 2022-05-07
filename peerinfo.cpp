@@ -23,7 +23,8 @@ PeerInfo::~PeerInfo()
 // getter
 void PeerInfo::setOnline() {
     if(onlineStatus == STATIC || onlineStatus == ONLINE) return ;
-    onlineStatus = ONLINE;
+    if(type == SERVER) onlineStatus = STATIC;
+    else onlineStatus = ONLINE;
     emit updated();
 }
 
@@ -82,6 +83,13 @@ void PeerInfo::setIp(QString ip) {
 void PeerInfo::setPort(int port) {
     if(this->port == port) return ;
     this->port = port;
+    emit updated();
+}
+
+void PeerInfo::setType(PeerInfo::PeerType type)
+{
+    if(this->type == type) return ;
+    this->type = type;
     emit updated();
 }
 

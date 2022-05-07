@@ -60,6 +60,10 @@ private slots:
 
     void on_mannulBtn_clicked();
 
+    void on_broButton_clicked();
+
+    void on_delButton_clicked();
+
 private:
     Ui::MainWindow *ui;
     SettingDialog *settingDiglog;
@@ -70,13 +74,13 @@ private:
 
     // 处理要发送的数据
     void processSendMessage(MessageHeader* header, char* data, QHostAddress addr, quint16 port);
-    void parseDatagram(QUdpSocket* sock);
     void processDatagram(MainWindow::MessageHeader *header, char *data, QHostAddress addr, quint16 port);
 
     // 定时器
     int broadcastTimer;                     // 广播自己状态定时器
     const int broadcastPeriod = 1000;       // 广播自己状态周期
     void broadcast();                       // 广播+发送udp在线状态
+    bool broadcastswitch;
 
     int updatePeerListTimer;                // 检查更新列表定时器
     const int updatePeerListPeriod = 5000;  // 检查更新列表周期
@@ -86,15 +90,19 @@ private:
 
     // 列表相关
     QList<PeerInfo*> peerList;
+    void addItem(PeerInfo* peer);
+    void setItem(quint64 id, PeerInfo* peer);
+    void delItem(PeerInfo* peer);
+    PeerInfo* getPeerById(quint64 id);
+    PeerInfo* getPeerById(QString id);
 
-    void reloadPeerList();
+    void reloadPeerList(PeerInfo* oldp, PeerInfo* newp);
 
     // 本地客户端信息
     PeerInfo* local;
     QString broadcastAddress;
 
     // udp socket
-    QUdpSocket* broadcaster;
     QUdpSocket* udpSocket;
 
     // 不同操作

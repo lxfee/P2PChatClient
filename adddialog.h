@@ -4,6 +4,7 @@
 #include <QDialog>
 #include "header.h"
 #include "peerinfo.h"
+#include "utils.h"
 
 namespace Ui {
 class AddDialog;

@@ -36,6 +36,7 @@ public:
     void setName(QString);
     void setIp(QString);
     void setPort(int);
+    void setType(PeerType);
 
     // getter
     quint64 getId();

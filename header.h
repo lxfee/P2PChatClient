@@ -8,8 +8,7 @@
 #include <QtNetwork>
 #include <algorithm>
 #include <iostream>
-
-
-#define RECVPORT 19198
+#include <QTreeWidget>
+#include <QMenu>
 
 #endif // HEADER_H

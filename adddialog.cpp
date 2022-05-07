@@ -17,8 +17,7 @@ void AddDialog::on_addBtn_clicked()
 {
     QHostAddress ip = QHostAddress(ui->ipLineEdit->text());
     quint16 port = ui->portSpinBox->value();
-    quint64 id = ip.toIPv4Address();
-    id = (id << 16) + port;
+    quint64 id = encodeIPAndPort(ip, port);
     emit addPeer(id, ip, port, tr("未知"), PeerInfo::UNDEFINED);
     close();
 }

@@ -36,9 +36,6 @@ void SettingDialog::loadLocalInfo(PeerInfo* local)
         ui->macBoBox->addItems(macs);
     }
     ui->macBoBox->setCurrentText(mac);
-
-    pos = ui->ipBoBox->findText(ip);
-
     bool found = ips.contains(ip);
     pos = ui->ipBoBox->findText(ip);
     if(!found || pos == -1) {

@@ -32,20 +32,6 @@
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="4" column="0">
-     <widget class="QPushButton" name="mannulBtn">
-      <property name="text">
-       <string>手动添加</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="0">
-     <widget class="QPushButton" name="settingBtn">
-      <property name="text">
-       <string>设置</string>
-      </property>
-     </widget>
-    </item>
     <item row="0" column="0">
      <layout class="QFormLayout" name="formLayout">
       <item row="0" column="0">
@@ -77,6 +63,19 @@
        </widget>
       </item>
      </layout>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="discoveredLabel">
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>发现的客户端/服务器：</string>
+      </property>
+     </widget>
     </item>
     <item row="2" column="0">
      <widget class="QTreeWidget" name="peerList">
@@ -110,18 +109,41 @@
       </column>
      </widget>
     </item>
-    <item row="1" column="0">
-     <widget class="QLabel" name="discoveredLabel">
-      <property name="font">
-       <font>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string>发现的客户端/服务器：</string>
-      </property>
-     </widget>
+    <item row="3" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QPushButton" name="mannulBtn">
+        <property name="text">
+         <string>手动添加</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="delButton">
+        <property name="text">
+         <string>删除</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="4" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QPushButton" name="broButton">
+        <property name="text">
+         <string>关闭广播</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="settingBtn">
+        <property name="text">
+         <string>设置</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
