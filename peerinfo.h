@@ -10,7 +10,8 @@ class PeerInfo : public QObject
 public:
     enum PeerType{
         CLIENT = 0,
-        SERVER = 1
+        SERVER = 1,
+        UNDEFINED
     };
     enum ONLINESTATUS {
         ONLINE,
@@ -30,6 +31,7 @@ public:
     // setter
     void setOnline();
     void setOffline();
+    void setUnknow();
     void setId(quint64);
     void setName(QString);
     void setIp(QString);
@@ -38,11 +40,13 @@ public:
     // getter
     quint64 getId();
     PeerType getType();
+    QString getTypeName();
     QString getName();
     QString getIp();
-    int getPort();
+    quint16 getPort();
     ONLINESTATUS getStatus();
-
+    QString getStatusName();
+    quint64 getTimestamp();
 
 signals:
     void updated();
@@ -57,7 +61,7 @@ private:
     enum PeerType type;
     QString name;
     QHostAddress ip;
-    int port;
+    quint16 port;
     enum ONLINESTATUS onlineStatus;
     quint64 lastUpdateTimestamp;
 

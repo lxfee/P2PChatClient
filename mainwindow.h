@@ -5,6 +5,7 @@
 #include "header.h"
 #include "peerinfo.h"
 #include "settingdialog.h"
+#include "adddialog.h"
 
 #define PEERTYPE 1
 
@@ -41,9 +42,10 @@ public:
         quint64 timestamp;
     };
 
-
 protected:
     void timerEvent(QTimerEvent *);
+
+
 
 private slots:
 
@@ -52,11 +54,16 @@ private slots:
     void processPendingDatagram();
     // 更新显示本地信息
     void updateLocalInfo();
+    // 添加Peer
+    void addPeer(quint64 id, QHostAddress ip, quint16 port, QString name, PeerInfo::PeerType type);
+    void addUPeer(quint64 id, QHostAddress ip, quint16 port, QString name, PeerInfo::PeerType type);
 
+    void on_mannulBtn_clicked();
 
 private:
     Ui::MainWindow *ui;
     SettingDialog *settingDiglog;
+    AddDialog *addDialog;
 
     // 初始化本地网络信息
     void initLocalPeerInfo();
@@ -68,17 +75,18 @@ private:
 
     // 定时器
     int broadcastTimer;                     // 广播自己状态定时器
-    const int broadcastPeriod = 5000;       // 广播自己状态周期
+    const int broadcastPeriod = 1000;       // 广播自己状态周期
     void broadcast();                       // 广播+发送udp在线状态
 
-//    int updatePeerListTimer;                // 检查更新列表定时器
-//    const int updatePeerListPeriod = 5000;  // 检查更新列表周期
-//    void updatePeerList();                  // 更新列表
+    int updatePeerListTimer;                // 检查更新列表定时器
+    const int updatePeerListPeriod = 5000;  // 检查更新列表周期
+    void updatePeerList();                  // 更新列表
+    const int offLineLimit = 10000;         // 离线时间10s
 
 
     // 列表相关
     QList<PeerInfo*> peerList;
-    void addPeer(quint64 id, QHostAddress ip, quint16 port, QString name, PeerInfo::PeerType type);
+
     void reloadPeerList();
 
     // 本地客户端信息
@@ -89,7 +97,8 @@ private:
     QUdpSocket* broadcaster;
     QUdpSocket* udpSocket;
 
-
+    // 不同操作
+    void sendHello(QHostAddress addr, quint16 port);
 
 
 

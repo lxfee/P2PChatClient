@@ -28,15 +28,18 @@ SOURCES += \
         mainwindow.cpp \
     peerinfo.cpp \
     settingdialog.cpp \
-    utils.cpp
+    utils.cpp \
+    adddialog.cpp
 
 HEADERS += \
         mainwindow.h \
     header.h \
     peerinfo.h \
     settingdialog.h \
-    utils.h
+    utils.h \
+    adddialog.h
 
 FORMS += \
         mainwindow.ui \
-    settingdialog.ui
+    settingdialog.ui \
+    adddialog.ui

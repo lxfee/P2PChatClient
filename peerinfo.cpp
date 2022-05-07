@@ -33,6 +33,11 @@ void PeerInfo::setOffline() {
     emit updated();
 }
 
+void PeerInfo::setUnknow()
+{
+    onlineStatus = UNKNOWN;
+}
+
 void PeerInfo::set(quint64 id, QString name, QString ip, int port) {
     bool changed = false;
     if(this->id != id) {
@@ -89,22 +94,57 @@ PeerInfo::PeerType PeerInfo::getType() {
     return type;
 }
 
+QString PeerInfo::getTypeName()
+{
+    switch (type) {
+    case CLIENT:
+        return tr("客户端");
+        break;
+    case SERVER:
+        return tr("服务端");
+        break;
+    default:
+        return tr("未知");
+        break;
+    }
+}
+
 QString PeerInfo::getName() {
     return name;
 }
 
 QString PeerInfo::getIp()
 {
-    return ip.toString();
+
+    return QHostAddress(ip.toIPv4Address()).toString();
 }
 
-int PeerInfo::getPort()
-{
+quint16 PeerInfo::getPort() {
     return port;
 }
 
 PeerInfo::ONLINESTATUS PeerInfo::getStatus() {
     return onlineStatus;
+}
+
+QString PeerInfo::getStatusName()
+{
+    switch(onlineStatus) {
+        case ONLINE:
+            return tr("在线");
+        case OFFLINE:
+            return tr("离线");
+        case STATIC:
+            return tr("静态");
+        case UNKNOWN:
+        default:
+            return tr("未知");
+    }
+}
+
+quint64 PeerInfo::getTimestamp()
+{
+    return lastUpdateTimestamp;
 }
 
 
