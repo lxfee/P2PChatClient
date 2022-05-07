@@ -29,7 +29,8 @@ SOURCES += \
     peerinfo.cpp \
     settingdialog.cpp \
     utils.cpp \
-    adddialog.cpp
+    adddialog.cpp \
+    chatwindow.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -37,9 +38,11 @@ HEADERS += \
     peerinfo.h \
     settingdialog.h \
     utils.h \
-    adddialog.h
+    adddialog.h \
+    chatwindow.h
 
 FORMS += \
         mainwindow.ui \
     settingdialog.ui \
-    adddialog.ui
+    adddialog.ui \
+    chatwindow.ui

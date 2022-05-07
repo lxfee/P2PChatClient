@@ -3,7 +3,8 @@
 QList<QString> getHostMacAddressList()
 {
     QList<QString> macList;
-    QList<QNetworkInterface> nets = QNetworkInterface::allInterfaces();// 获取所有网络接口列表
+    // 获取所有网络接口列表
+    QList<QNetworkInterface> nets = QNetworkInterface::allInterfaces();
     int nCnt = nets.count();
     for(int i = 0; i < nCnt; i ++) {
         // 如果此网络接口被激活并且正在运行并且不是回环地址，则就是我们需要找的Mac地址
@@ -15,6 +16,7 @@ QList<QString> getHostMacAddressList()
     }
     return macList;
 }
+
 
 QList<QString> getHostIPList()
 {
@@ -38,7 +40,6 @@ QList<QString> getHostIPList()
 
 quint64 encodeHostMacAddress(QString mac) {
     quint64 id = 0;
-
     QList<QString> bytes = mac.split(':');
     QString byte;
     foreach (byte, bytes) {
@@ -89,4 +90,20 @@ quint64 encodeIPAndPort(QHostAddress ip, quint16 port)
 {
     quint64 id = ip.toIPv4Address();
     return (id << 16) + port;
+}
+
+
+QString idToString(quint64 id) {
+    return QString("%1").arg(id);
+}
+
+quint64 stringToid(QString id) {
+    quint64 nid = 0;
+    id = id.simplified();
+    std::string sid = id.toStdString();
+    for(int i = 0; i < (int)sid.size(); i++) {
+        if(!isdigit(sid[i])) break;
+        nid = 10 * nid + sid[i] - '0';
+    }
+    return nid;
 }

@@ -14,6 +14,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // 放在setui后面，要设置好this后再来
     settingDiglog = new SettingDialog(this);
     addDialog = new AddDialog(this);
+    chatWindow = new ChatWindow();
     local = new PeerInfo(this);
     qDebug() << local->getTypeName();
     broadcastTimer = startTimer(broadcastPeriod);
@@ -25,11 +26,13 @@ MainWindow::MainWindow(QWidget *parent) :
 
     udpSocket = new QUdpSocket(this);
 
-
-    connect(addDialog, SIGNAL(addPeer(quint64,QHostAddress,quint16,QString,PeerInfo::PeerType)), this, SLOT(addUPeer(quint64,QHostAddress,quint16,QString,PeerInfo::PeerType)));
+    connect(chatWindow, SIGNAL(sendmsg(PeerInfo*, QByteArray)), this, SLOT(sendMessage(PeerInfo*, QByteArray)));
+    connect(addDialog, SIGNAL(addPeer(quint64,QHostAddress,quint16,QString,PeerInfo::PeerType, PeerInfo::ONLINESTATUS)), this, SLOT(addPeer(quint64,QHostAddress,quint16,QString,PeerInfo::PeerType, PeerInfo::ONLINESTATUS)));
     connect(local, SIGNAL(updated()), this, SLOT(updateLocalInfo()));
     connect(settingDiglog, SIGNAL(update(quint64, QString, QString, int)), local, SLOT(set(quint64, QString, QString, int)));
     connect(udpSocket, SIGNAL(readyRead()), this, SLOT(processPendingDatagram()));
+    connect(ui->peerList, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(itemPressedSlot(QModelIndex)));
+    connect(this, SIGNAL(peerupdated(PeerInfo *)), this, SLOT(updateChatWindowInfo(PeerInfo*)));
 
     initLocalPeerInfo();
 
@@ -68,13 +71,12 @@ void MainWindow::initLocalPeerInfo()
 
 }
 
-void MainWindow::processSendMessage(MainWindow::MessageHeader* header, char *data, QHostAddress addr, quint16 port)
+void MainWindow::processSendMessage(MessageHeader* header, char *data, QHostAddress addr, quint16 port)
 {
     addr = QHostAddress(addr.toIPv4Address());
-    qDebug() << "type " << header->messageTye << " ";
-    qDebug() << "send to:" << tr("%1:%2").arg(addr.toString()).arg(port) << "from :" << tr("%1:%2").arg(udpSocket->localAddress().toString()).arg(udpSocket->localPort());
-    header->timestamp = QDateTime::currentDateTime().toMSecsSinceEpoch();
-    QByteArray datagram((char*)header, sizeof(MainWindow::MessageHeader));
+    if(header->messageTye != REPLY)
+        header->timestamp = QDateTime::currentDateTime().toMSecsSinceEpoch();
+    QByteArray datagram((char*)header, sizeof(MessageHeader));
     if(data) {
         datagram.append(data, header->size);
     }
@@ -84,33 +86,46 @@ void MainWindow::processSendMessage(MainWindow::MessageHeader* header, char *dat
 
 
 
-void MainWindow::processDatagram(MainWindow::MessageHeader *header, char *data, QHostAddress addr, quint16 port)
+void MainWindow::processDatagram(MessageHeader *header, char *data, QHostAddress addr, quint16 port)
 {
     if(header->to && header->to != local->getId()) return ;
     if(header->from && header->from == local->getId()) return ;
+     //qDebug() << "type: " << (MEESAGETYPE)header->messageTye <<
+     //               "recv from " << header->from << ":" << tr("%1:%2").arg(addr.toString()).arg(port);
 
-//    qDebug() << "type: " << (MEESAGETYPE)header->messageTye <<
-//                "recv from " << header->from << ":" << tr("%1:%2").arg(addr.toString()).arg(port);
-
-    QByteArray username;
+    QByteArray recvdata;
     switch(header->messageTye) {
         case HELLO:
-            username.append(data, header->size);
-            addPeer(header->from, addr, port, username, (PeerInfo::PeerType)(header->flag & PEERTYPE));
+            recvdata.append(data, header->size);
+            addPeer(header->from, addr, port, recvdata, (PeerInfo::PeerType)(header->flag & PEERTYPE));
             // 回应
             header->messageTye = (qint8)REPLYHELLO;
             header->to = header->from;
             header->from = local->getId();
-            username.clear();
-            username.append(local->getName());
-            processSendMessage(header, username.data(), addr, port);
+            recvdata.clear();
+            recvdata.append(local->getName());
+            header->size = recvdata.size();
+            processSendMessage(header, recvdata.data(), addr, port);
         break;
 
         case REPLYHELLO:
-            username.append(data, header->size);
-            addPeer(header->from, addr, port, username, (PeerInfo::PeerType)(header->flag & PEERTYPE));
+            recvdata.append(data, header->size);
+            addPeer(header->from, addr, port, recvdata, (PeerInfo::PeerType)(header->flag & PEERTYPE));
         break;
+        case MESSAGE:
+            recvdata.append(data, header->size);
+            recvMessage(*header, recvdata);
 
+            header->messageTye = (qint8)REPLY;
+            header->to = header->from;
+            header->from = local->getId();
+            recvdata.clear();
+            header->size = recvdata.size();
+            processSendMessage(header, recvdata.data(), addr, port);
+        case REPLY:
+            qDebug() << "reply";
+            updateReplyMessage(header);
+        break;
     }
 }
 
@@ -148,11 +163,22 @@ void MainWindow::updatePeerList()
     if(modified) reloadPeerList(peer, peer);
 }
 
-void MainWindow::addPeer(quint64 id, QHostAddress ip, quint16 port, QString name, PeerInfo::PeerType type)
+void MainWindow::addPeer(quint64 id, QHostAddress ip, quint16 port, QString name, PeerInfo::PeerType type, PeerInfo::ONLINESTATUS status)
 {
-    PeerInfo *peer = getPeerById(id);
+    PeerInfo *peer = nullptr;
     PeerInfo *newpeer = nullptr;
+    if(status == PeerInfo::UNKNOWN) {
+        foreach (peer, peerList) {
+            if(encodeIPAndPort(QHostAddress(peer->getIp()), peer->getPort()) == encodeIPAndPort(ip, port)) {
+                peer->setUnknow();
+                reloadPeerList(peer, peer);
+                return ;
+            }
+        }
+    }
 
+
+    peer = getPeerById(id);
     if(!peer) {
         peer = getPeerById(encodeIPAndPort(ip, port));
     }
@@ -165,75 +191,79 @@ void MainWindow::addPeer(quint64 id, QHostAddress ip, quint16 port, QString name
         peer->setPort(port);
         peer->setName(name);
         peer->updateTimestamp();
-        peer->setOnline();
+        if(status == PeerInfo::ONLINE)
+            peer->setOnline();
+        else
+            peer->setUnknow();
         reloadPeerList(&oldp, peer);
     } else {
         newpeer = new PeerInfo(this, id, type, name, ip, port);
-        newpeer->setOnline();
-        reloadPeerList(nullptr, newpeer);
-    }
-}
-
-void MainWindow::addUPeer(quint64 id, QHostAddress ip, quint16 port, QString name, PeerInfo::PeerType type)
-{
-    PeerInfo *peer = getPeerById(id);
-    PeerInfo *newpeer = nullptr;
-    if(peer) {
-        PeerInfo oldp(0, peer->getId());
-        peer->setId(id);
-        peer->setIp(ip.toString());
-        peer->setPort(port);
-        peer->setName(name);
-        peer->updateTimestamp();
-        peer->setUnknow();
-        reloadPeerList(&oldp, peer);
-    } else {
-        newpeer = new PeerInfo(this, id, type, name, ip, port);
-        newpeer->setUnknow();
+        if(status == PeerInfo::ONLINE)
+            newpeer->setOnline();
+        else
+            newpeer->setUnknow();
         reloadPeerList(nullptr, newpeer);
     }
 }
 
 void MainWindow::setItem(quint64 id, PeerInfo* peer) {
-    int p = 0;
-    QTreeWidgetItem* target =  nullptr;
-    while((target = ui->peerList->itemAt(0, p)) != nullptr) {
-        if(target->text(0) == tr("%1").arg(id)) break;
-        p++;
+    if(peer == nullptr) return ;
+    int size = ui->peerList->topLevelItemCount();
+    QTreeWidgetItem *target = nullptr;
+    for(int i = 0; i < size; i++) {
+        if(stringToid(ui->peerList->topLevelItem(i)->text(0)) == id) {
+            target = ui->peerList->topLevelItem(i);
+            break;
+        }
     }
+
     if(target) {
+        int unread = unReadBox[peer->getId()];
+        QString unreadMessage;
+        if(unread) {
+            unreadMessage = tr("(你有%1条未读信息)").arg(unread);
+        }
+
         target->setText(0, tr("%1").arg(peer->getId()));
         target->setText(1, peer->getTypeName());
         target->setText(2, peer->getName());
         target->setText(3, tr("%1:%2").arg(peer->getIp()).arg(peer->getPort()));
-        target->setText(4, peer->getStatusName());
+        target->setText(4, peer->getStatusName() + unreadMessage);
+        emit peerupdated(peer);
+    } else {
+        qDebug() << "in setItem, something wrong!";
     }
 
 }
 
 void MainWindow::delItem(PeerInfo *peer)
 {
-    QTreeWidgetItem* target =  nullptr;
-    int p = 0;
-    while((target = ui->peerList->itemAt(0, p)) != nullptr) {
-        if(target->text(0) == tr("%1").arg(peer->getId())) break;
-        p++;
+    if(chatWindow->isHidden() || chatWindow->getRmotePeer() != peer) {
+        int size = ui->peerList->topLevelItemCount();
+        int i = 0;
+        for(;i < size; i++) {
+            if(stringToid(ui->peerList->topLevelItem(i)->text(0)) == peer->getId()) {
+                break;
+            }
+        }
+        if(i != size) {
+            delete ui->peerList->takeTopLevelItem(i);
+            qDebug() << "delete item" << i;
+            if(!peerList.removeOne(peer)) {
+                qDebug() << "in delItem, something wrong!";
+            }
+        }
+    } else {
+        QMessageBox::warning(this, tr("警告"),
+                    tr("打开聊天窗口时无法删除对方"));
     }
-    delete ui->peerList->takeTopLevelItem(p);
-    peerList.removeOne(peer);
 }
-
 PeerInfo *MainWindow::getPeerById(quint64 id)
-{
-    return getPeerById(tr("%1").arg(id));
-}
-
-PeerInfo *MainWindow::getPeerById(QString id)
 {
     PeerInfo* peer = nullptr;
     bool found = false;
     foreach (peer, peerList) {
-        if(tr("%1").arg(peer->getId()) == id) {
+        if(peer->getId() == id) {
             found = true;
             break;
         }
@@ -244,23 +274,41 @@ PeerInfo *MainWindow::getPeerById(QString id)
     }
 }
 
+PeerInfo *MainWindow::getPeerById(QString id)
+{
+    return getPeerById(stringToid(id));
+}
+
 void MainWindow::addItem(PeerInfo* peer) {
+    if(getPeerById(peer->getId())) return ;
+    int size = ui->peerList->topLevelItemCount();
+    QTreeWidgetItem *child = nullptr;
+    for(int i = 0; i < size; i++) {
+        child = ui->peerList->topLevelItem(i);
+        if(stringToid(child->text(0)) == peer->getId()) qDebug() << "in addItem something wrong!";
+    }
+
     peerList.append(peer);
+    int unread = unReadBox[peer->getId()];
+    QString unreadMessage;
+    if(unread) {
+        unreadMessage = tr("(你有%1条未读信息)").arg(unread);
+    }
+
     QStringList texts;
-    texts << tr("%1").arg(peer->getId())
+    texts << idToString(peer->getId())
           << peer->getTypeName()
           << peer->getName()
-          << tr("%1:%2").arg(peer->getIp()).arg(peer->getPort())
-          << peer->getStatusName();
+          << QString("%1:%2").arg(peer->getIp()).arg(peer->getPort())
+          << peer->getStatusName() + unreadMessage;
     QTreeWidgetItem* info = new QTreeWidgetItem(texts);
     ui->peerList->insertTopLevelItem(0, info);
 }
 
 void MainWindow::reloadPeerList(PeerInfo* oldp, PeerInfo* newp)
 {
-    if(!oldp && !newp) {
-        return ;
-    }
+    if(!oldp && !newp) return ;
+
     if(oldp && newp) {
         setItem(oldp->getId(), newp);
         return ;
@@ -269,8 +317,86 @@ void MainWindow::reloadPeerList(PeerInfo* oldp, PeerInfo* newp)
         addItem(newp);
         return ;
     }
-    if(oldp) {
-        delItem(oldp);
+    if(oldp) delItem(oldp);
+}
+
+void MainWindow::openChatWindow(PeerInfo *peer)
+{
+    if(peer == nullptr) return ;
+    if(peer->getType() != PeerInfo::CLIENT) {
+        QMessageBox::warning(this, tr("错误"),
+                    tr("无法向非客户端发起聊天"));
+        return ;
+    }
+    // 使用手动
+    chatWindow->setWindowTitle(tr("%1 %2(%3)").arg(peer->getId()).arg(peer->getName()).arg(peer->getStatusName()));
+    QList<Message>& list = messageBox[peer->getId()];
+    if(peer->getStatus() == PeerInfo::OFFLINE) {
+        peer->setUnknow();
+        reloadPeerList(peer, peer);
+    }
+    unreadclear(peer->getId());
+    chatWindow->setRmotePeer(peer);
+    chatWindow->reloadChatWindow(list);
+    chatWindow->show();
+}
+
+void MainWindow::addMessage(Message& message)
+{
+    quint64 remoteid;
+    if(local->getId() == message.header.to) {
+        // 接收到的信息
+        remoteid = message.header.from;
+    } else if(local->getId() == message.header.from) {
+        // 发送出去的信息
+        remoteid = message.header.to;
+    } else return ;
+
+    QList<Message>& messageList = messageBox[remoteid];
+
+    int i = messageList.size() - 1;
+    bool sorted = false;
+    for(; i >= 0; i--) {
+        if(message == messageList[i]) return ;
+        if(messageList[i] < message) {
+            break;
+        }
+        sorted = true;
+    }
+    messageList.insert(i + 1, message);
+    if(sorted) {
+        chatWindow->reloadChatWindow(messageList);
+    } else {
+        chatWindow->appendChatWindow(message);
+    }
+}
+
+void MainWindow::unreadins(quint64 id)
+{
+    if(chatWindow->isHidden() || stringToid(chatWindow->windowTitle()) != id) {
+        unReadBox[id]++;
+        setItem(id, getPeerById(id));
+    }
+}
+
+void MainWindow::unreadclear(quint64 id)
+{
+    unReadBox[id] = 0;
+    setItem(id, getPeerById(id));
+}
+
+void MainWindow::updateReplyMessage(MessageHeader *header)
+{
+    quint64 remoteid = header->from;
+    if(messageBox.count(remoteid)) {
+        QList<Message>& messageList = messageBox[remoteid];
+        for(int i = 0; i < messageList.size(); i++) {
+            if(messageList[i].header.timestamp == header->timestamp) {
+                messageList[i].recv = true;
+                break;
+            }
+        }
+        chatWindow->reloadChatWindow(messageList);
     }
 }
 
@@ -287,6 +413,26 @@ void MainWindow::sendHello(QHostAddress addr, quint16 port)
     processSendMessage(&header, data.data(), addr, port);
 }
 
+void MainWindow::sendMessage(PeerInfo* peer, QByteArray data)
+{
+    MessageHeader header;
+
+    header.messageTye = MESSAGE;
+    header.from = local->getId();
+    header.to = peer->getId();
+    header.size = (quint16)data.size();
+    processSendMessage(&header, data.data(), QHostAddress(peer->getIp()), peer->getPort());
+    Message message(header, data);
+    addMessage(message);
+}
+
+void MainWindow::recvMessage(MessageHeader& header, QByteArray& data)
+{
+    Message message(header, data);
+    addMessage(message);
+    unreadins(header.from);
+}
+
 void MainWindow::updateLocalInfo()
 {
     ui->usernameInfoLabel->setText(local->getName());
@@ -298,13 +444,12 @@ void MainWindow::updateLocalInfo()
     if(!udpSocket->bind(QHostAddress(local->getIp()), local->getPort(), QUdpSocket::ShareAddress)) {
         qDebug() << "can not open socket";
     }
-
 }
 
 void MainWindow::on_settingBtn_clicked()
 {
     settingDiglog->loadLocalInfo(local);
-    settingDiglog->exec();
+    settingDiglog->show();
 }
 
 void MainWindow::processPendingDatagram()
@@ -354,4 +499,18 @@ void MainWindow::on_delButton_clicked()
     if(ui->peerList->currentItem() == nullptr) return ;
     PeerInfo *peer = getPeerById(ui->peerList->currentItem()->text(0));
     reloadPeerList(peer, nullptr);
+}
+
+void MainWindow::itemPressedSlot(QModelIndex index)
+{
+    if(ui->peerList->currentItem()) {
+        openChatWindow(getPeerById(ui->peerList->currentItem()->text(0)));
+    }
+}
+
+void MainWindow::updateChatWindowInfo(PeerInfo *peer)
+{
+    if(peer == nullptr) return ;
+    if(stringToid(chatWindow->windowTitle()) != peer->getId()) return ;
+    chatWindow->setWindowTitle(tr("%1 %2(%3)").arg(peer->getId()).arg(peer->getName()).arg(peer->getStatusName()));
 }

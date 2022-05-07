@@ -18,7 +18,7 @@ public:
     explicit AddDialog(QWidget *parent = 0);
     ~AddDialog();
 signals:
-    void addPeer(quint64, QHostAddress, quint16, QString, PeerInfo::PeerType);
+    void addPeer(quint64, QHostAddress, quint16, QString, PeerInfo::PeerType, PeerInfo::ONLINESTATUS);
 
 private slots:
     void on_addBtn_clicked();
