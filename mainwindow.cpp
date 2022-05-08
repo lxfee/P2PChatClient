@@ -143,6 +143,7 @@ void MainWindow::processDatagram(MessageHeader *header, char *data, QHostAddress
             header->flag |= ISTRANS;
             foreach (peer, peerList) {
                 if(peer->getId() == header->to) continue;
+                if(peer->getStatus() != PeerInfo::ONLINE) continue;
                 header->from = peer->getId();
                 recvdata.clear();
                 recvdata.append(peer->getName());
