@@ -8,8 +8,6 @@
 #include "adddialog.h"
 #include "chatwindow.h"
 
-#define PEERTYPE 1
-
 namespace Ui {
 class MainWindow;
 }
@@ -112,7 +110,7 @@ private:
     void sendBye(QHostAddress addr, quint16 port);
     void recvMessage(MessageHeader& header, QByteArray& data);
 
-
+    bool mode = true;
 
 };
 

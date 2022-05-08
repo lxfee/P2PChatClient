@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>569</width>
-    <height>563</height>
+    <height>526</height>
    </rect>
   </property>
   <property name="font">
@@ -16,7 +16,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>聊天客户端</string>
   </property>
   <property name="layoutDirection">
    <enum>Qt::LeftToRight</enum>

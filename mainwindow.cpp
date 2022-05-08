@@ -110,7 +110,17 @@ void MainWindow::processSendMessage(MessageHeader* header, char *data, QHostAddr
 
 void MainWindow::processDatagram(MessageHeader *header, char *data, QHostAddress addr, quint16 port)
 {
-    if(header->to && header->to != local->getId()) return ;
+    PeerInfo* peer = nullptr;
+    // 如果不是发给自己的就转发
+    // 如果目标ID为0，代表这个数据包是广播数据包，不要转发
+    if(header->to && header->to != local->getId()) {
+        peer = getPeerById(header->to);
+        header->flag |= ISTRANS; // 打上被转发标记
+        if(peer)
+            processSendMessage(header, data, QHostAddress(peer->getIp()), peer->getPort());
+        return ;
+    }
+
     if(header->from && header->from == local->getId()) return ;
      //qDebug() << "type: " << (MEESAGETYPE)header->messageTye <<
      //               "recv from " << header->from << ":" << tr("%1:%2").arg(addr.toString()).arg(port);
@@ -128,10 +138,30 @@ void MainWindow::processDatagram(MessageHeader *header, char *data, QHostAddress
             recvdata.append(local->getName());
             header->size = recvdata.size();
             processSendMessage(header, recvdata.data(), addr, port);
+            // 将自己列表对象发给对方
+            // 打上转发标记
+            header->flag |= ISTRANS;
+            foreach (peer, peerList) {
+                if(peer->getId() == header->to) continue;
+                header->from = peer->getId();
+                recvdata.clear();
+                recvdata.append(peer->getName());
+                header->size = recvdata.size();
+                processSendMessage(header, recvdata.data(), addr, port);
+            }
         break;
 
         case REPLYHELLO:
             recvdata.append(data, header->size);
+            if(header->flag & ISTRANS) {
+                peer = getPeerById(header->from);
+                // 如果是转发的，对方在线，就不要覆盖对方的地址。不然对方的真正地址会被转发的地址覆盖
+                if(peer && peer->getStatus() == PeerInfo::ONLINE) {
+                    addr = QHostAddress(peer->getIp());
+                    port = peer->getPort();
+                }
+            }
+            // 更新列表
             addPeer(header->from, addr, port, recvdata, (PeerInfo::PeerType)(header->flag & PEERTYPE));
         break;
         case MESSAGE:

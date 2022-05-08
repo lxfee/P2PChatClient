@@ -24,14 +24,17 @@ enum MEESAGETYPE {
     BYE
 };
 
+#define PEERTYPE 1
+#define ISTRANS 2
+
 struct MessageHeader {
-    quint8 messageTye;
-    quint8 flag = 0;
-    quint16 size;
-    unsigned int: 32;
-    quint64 from;
-    quint64 to;
-    quint64 timestamp;
+    quint8 messageTye;  // 消息类型
+    quint8 flag = 0;    // 标志位
+    quint16 size;       // 正文长度
+    unsigned int: 32;   // 空闲不使用，用于扩展
+    quint64 from;       // 发送方ID
+    quint64 to;         // 接收方ID
+    quint64 timestamp;  // 消息发送时的时间戳
 };
 
 struct Message {
