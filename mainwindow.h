@@ -25,7 +25,8 @@ public:
 protected:
     // 时钟事件
     void timerEvent(QTimerEvent *);
-
+    // 关闭事件
+    void closeEvent(QCloseEvent *);
 signals:
     // 发生列表更新操作
     void peerupdated(PeerInfo * newpeer);
@@ -108,6 +109,7 @@ private:
 
     // 具体操作
     void sendHello(QHostAddress addr, quint16 port);
+    void sendBye(QHostAddress addr, quint16 port);
     void recvMessage(MessageHeader& header, QByteArray& data);
 
 

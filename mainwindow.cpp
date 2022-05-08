@@ -55,6 +55,28 @@ void MainWindow::timerEvent(QTimerEvent *event)
     }
 }
 
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+    if(chatWindow->isHidden()) {
+        if(broadcastswitch) {
+            qDebug() << "local bro: " << broadcastAddress;
+            sendBye(QHostAddress(broadcastAddress), local->getPort());
+        }
+        // 向其它客户端发送信息保持在线状态
+        PeerInfo *peer;
+        foreach (peer, peerList) {
+            if(peer->getStatus() != PeerInfo::OFFLINE) {
+                sendBye(QHostAddress(peer->getIp()), peer->getPort());
+            }
+        }
+        e->accept();
+    } else {
+        QMessageBox::warning(this, tr("警告"),
+                    tr("请关闭聊天窗口"));
+        e->ignore();
+    }
+}
+
 
 
 void MainWindow::initLocalPeerInfo()
@@ -125,6 +147,11 @@ void MainWindow::processDatagram(MessageHeader *header, char *data, QHostAddress
         case REPLY:
             qDebug() << "reply";
             updateReplyMessage(header);
+        break;
+        case BYE:
+            PeerInfo* peer = getPeerById(header->from);
+            peer->setOffline();
+            reloadPeerList(peer, peer);
         break;
     }
 }
@@ -332,8 +359,7 @@ void MainWindow::openChatWindow(PeerInfo *peer)
     chatWindow->setWindowTitle(tr("%1 %2(%3)").arg(peer->getId()).arg(peer->getName()).arg(peer->getStatusName()));
     QList<Message>& list = messageBox[peer->getId()];
     if(peer->getStatus() == PeerInfo::OFFLINE) {
-        peer->setUnknow();
-        reloadPeerList(peer, peer);
+        sendHello(QHostAddress(peer->getIp()), peer->getPort());
     }
     unreadclear(peer->getId());
     chatWindow->setRmotePeer(peer);
@@ -405,6 +431,19 @@ void MainWindow::sendHello(QHostAddress addr, quint16 port)
     MessageHeader header;
 
     header.messageTye = HELLO;
+    header.from = local->getId();
+    header.to = 0;
+    QByteArray data;
+    data.append(local->getName());
+    header.size = (quint16)data.size();
+    processSendMessage(&header, data.data(), addr, port);
+}
+
+void MainWindow::sendBye(QHostAddress addr, quint16 port)
+{
+    MessageHeader header;
+
+    header.messageTye = BYE;
     header.from = local->getId();
     header.to = 0;
     QByteArray data;

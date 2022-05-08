@@ -21,6 +21,7 @@ enum MEESAGETYPE {
     REPLYHELLO,
     MESSAGE,
     REPLY,
+    BYE
 };
 
 struct MessageHeader {
